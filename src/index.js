@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
-// Public, safe to hardcode
+// Public (safe to hardcode)
 const SUPABASE_URL_DEFAULT = "https://idtwjchmeldqwurigvkx.supabase.co";
 
 export default {
@@ -78,27 +78,25 @@ export default {
     // ----- Helpers -----
     const pad = (s) => (s ?? "—");
     const fmtDate = (d) => (d ? d.slice(0,10) : "—");
-    // Up to 3 decimals (trim trailing zeros)
     const fmt3 = (n) => {
       if (n == null || n === "") return "—";
       const num = Number(n);
       if (!Number.isFinite(num)) return "—";
-      return num.toFixed(3).replace(/\.?0+$/, "");
+      return num.toFixed(3).replace(/\.?0+$/, ""); // up to 3 decimals
     };
 
-// draw up to 3 lines starting from a TOP Y (not baseline)
-const drawMultiFromTop = (text, x, topY) => {
-  const s = String(text ?? "");
-  const charsPerLine = 88;     // fits ~430px @ size 9
-  let i = 0, lines = 0, ty = topY - 12;  // first line ~12px below top
-  while (i < s.length && lines < 3) {
-    drawText(s.slice(i, i + charsPerLine), x, ty, { size: 9 });
-    i += charsPerLine; lines++; ty -= 12;
-  }
-};
+    // draw up to 3 lines starting from a TOP Y (inside a box)
+    const drawMultiFromTop = (text, x, topY) => {
+      const s = String(text ?? "");
+      const charsPerLine = 88;      // fits ~430px @ size 9
+      const lineH = 12;
+      let i = 0, lines = 0, ty = topY - 14; // first line ~14px down from top
+      while (i < s.length && lines < 3) {
+        drawText(s.slice(i, i + charsPerLine), x, ty, { size: 9 });
+        i += charsPerLine; lines++; ty -= lineH;
+      }
+    };
 
-
-    
     // ----- Build PDF -----
     const pdf = await PDFDocument.create();
     const page = pdf.addPage([595, 842]); // A4
@@ -123,18 +121,29 @@ const drawMultiFromTop = (text, x, topY) => {
     drawText(`Claim No.: ${pad(claim.warranty_claim_id)}`, 420, y, { bold:true, size:12 });
     y -= 32;
 
-    // Claim info
-    drawText("Date Claimed:", MARGIN_L, y, { bold:true }); drawText(fmtDate(claim.date_claimed), 130, y); y -= 16; y -= 8;
-    drawText("Customer:",     MARGIN_L, y, { bold:true }); drawText(pad(claim.account_name), 130, y);  y -= 16; 
+    // Claim info (extra line after Date Claimed)
+    drawText("Date Claimed:", MARGIN_L, y, { bold:true }); drawText(fmtDate(claim.date_claimed), 130, y); y -= 16;
+    y -= 8; // extra gap
+    drawText("Customer:",     MARGIN_L, y, { bold:true }); drawText(pad(claim.account_name), 130, y);  y -= 16;
     drawText("Address:",      MARGIN_L, y, { bold:true }); drawText(pad(claim.account_address), 130, y); y -= 24;
 
     // Item info
     drawText("Item Information", MARGIN_L, y, { bold:true, size:11 }); y -= 16;
     drawText("Barcode:", MARGIN_L, y, { bold:true }); drawText(pad(claim.barcode), 130, y); y -= 16;
-    drawText("SKU:",     MARGIN_L, y, { bold:true }); drawText(pad(claim.sku_code), 130, y); y -= 20; y -= 8;
+    drawText("SKU:",     MARGIN_L, y, { bold:true }); drawText(pad(claim.sku_code), 130, y); y -= 20;
 
-    // Diagnostics
-    drawText("Diagnostic Report", MARGIN_L, y, { bold:true, size:11 }); y -= 16;
+    // extra gap before Diagnostic Report
+    y -= 8;
+
+    // Centered "Diagnostic Report"
+    {
+      const title = "Diagnostic Report";
+      const size = 11;
+      const textW = fontBold.widthOfTextAtSize(title, size);
+      const x = MARGIN_L + (CONTENT_W - textW) / 2;
+      drawText(title, x, y, { bold:true, size });
+      y -= 16;
+    }
 
     // A. Testing Before Charging
     drawText("A. Testing Before Charging", MARGIN_L, y, { bold:true }); y -= 14;
@@ -192,46 +201,39 @@ const drawMultiFromTop = (text, x, topY) => {
     drawText(claim.recharge ? "Yes" : "No", 150, y);
     drawText("No Defect:", 280, y, { bold:true });
     drawText(claim.no_defect ? "Yes" : "No", 420, y);
+    y -= 24;
 
-// modest gap from the Yes/No row
-y -= 24;
+    // ----- Evaluation block (taller boxes: 3 lines fit) -----
+    const LABEL_X = MARGIN_L;
+    const BOX_X   = 130;
+    const BOX_W   = 430;
+    const BOX_H   = 48;       // was 36 -> now taller for 3 lines
+    const BOX_TOP_OFFSET = 10;
 
-// alignment constants
-const LABEL_X = MARGIN_L;
-const BOX_X   = 130;
-const BOX_W   = 430;
-const BOX_H   = 36;
+    const evalRows = [
+      ["Result", pad(claim.result)],
+      ["Factory Defect", pad(claim.factory_defect)],
+      ["Non-Factory Defect", pad(claim.non_factory_defect)],
+      ["Remarks", pad(claim.remarks)],
+      ["Findings", pad(claim.findings)],
+      ["Final Result", pad(claim.final_result)]
+    ];
 
-// how high above the label baseline the TOP of the box should sit
-const BOX_TOP_OFFSET = 10;  // tweak 8–12 if you want
+    for (const [label, val] of evalRows) {
+      drawText(label + ":", LABEL_X, y, { bold:true });
 
-const evalRows = [
-  ["Result", pad(claim.result)],
-  ["Factory Defect", pad(claim.factory_defect)],
-  ["Non-Factory Defect", pad(claim.non_factory_defect)],
-  ["Remarks", pad(claim.remarks)],
-  ["Findings", pad(claim.findings)],
-  ["Final Result", pad(claim.final_result)]
-];
+      const boxTop    = y + BOX_TOP_OFFSET;
+      const boxBottom = boxTop - BOX_H;
 
-for (const [label, val] of evalRows) {
-  // label baseline
-  drawText(label + ":", LABEL_X, y, { bold: true });
+      box(BOX_X, boxBottom, BOX_W, BOX_H);
+      drawMultiFromTop(val, BOX_X + 4, boxTop - 4);
 
-  // box top aligned to the top of the word
-  const boxTop    = y + BOX_TOP_OFFSET;
-  const boxBottom = boxTop - BOX_H;
+      y = boxBottom - 12;
+    }
 
-  box(BOX_X, boxBottom, BOX_W, BOX_H);
-  drawMultiFromTop(val, BOX_X + 4, boxTop - 4);
+    // ----- Signatures: drop 2 extra lines lower -----
+    y -= 24; // two lines extra below the final-result box
 
-  // step down to next row
-  y = boxBottom - 12;
-}
-y -= 12;  // small extra breathing room before signatures
-
-
-    // Signatures (equal widths, tall; put value beside the title, no collision)
     const diagName = String(pad(claim.diagnosed_by));
     const recvName = String(pad(claim.received_by));
 
@@ -241,16 +243,13 @@ y -= 12;  // small extra breathing room before signatures
     const diagX   = MARGIN_L;
     const recvX   = MARGIN_L + SIG_W + SIG_GAP;
 
-    // Titles
+    // Titles + values (values beside titles)
     drawText("Diagnosed By", diagX, y, { bold:true });
+    drawText(diagName,       diagX + 110, y);
     drawText("Received By",  recvX, y, { bold:true });
+    drawText(recvName,       recvX + 95,  y);
 
-    // Printed values BESIDE the titles (not colliding)
-    // (Place them a bit to the right of each title on the same baseline)
-    drawText(diagName, diagX + 110, y);   // shift right so it never hits the title
-    drawText(recvName, recvX + 95,  y);
-
-    // Signature boxes (equal length)
+    // Boxes
     box(diagX, y - 18, SIG_W, SIG_H);
     box(recvX, y - 18, SIG_W, SIG_H);
 
