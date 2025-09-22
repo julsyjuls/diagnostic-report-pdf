@@ -1,1 +1,8 @@
+name = "diagnostic-report-pdf"
+main = "src/index.js"
+compatibility_date = "2024-09-22"
+
+[vars]
+SUPABASE_URL = ""
+SUPABASE_ANON_KEY = ""
 
