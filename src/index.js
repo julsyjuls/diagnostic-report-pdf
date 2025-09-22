@@ -1,46 +1,34 @@
 // src/index.js
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
+// Put this near the top of src/index.js (outside fetch)
+const SUPABASE_URL_DEFAULT = "https://YOUR-PROJECT-REF.supabase.co"; // <-- replace
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
 
-    // CORS preflight
-    if (req.method === "OPTIONS") {
-      return new Response(null, {
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, OPTIONS",
-          "Access-Control-Allow-Headers": "Authorization, Content-Type"
-        }
-      });
+    // ...OPTIONS handler & /health route (keep yours)...
+
+    // Grab secrets/vars
+    const SUPABASE_URL = env.SUPABASE_URL || SUPABASE_URL_DEFAULT;  // fallback to hardcoded
+    const { SUPABASE_ANON_KEY } = env;
+
+    // Fail fast only if the *key* is missing (URL has a fallback)
+    if (!SUPABASE_ANON_KEY) {
+      return new Response("Missing env: SUPABASE_ANON_KEY", { status: 500 });
     }
 
-    // --- Health check (optional) ---
-    if (url.pathname === "/health") {
-      const ok = {
-        has_SUPABASE_URL: !!env.SUPABASE_URL,
-        has_SUPABASE_ANON_KEY: !!env.SUPABASE_ANON_KEY
-      };
-      return new Response(JSON.stringify(ok, null, 2), {
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-      });
-    }
+    // --- Fetch from Supabase view ---
+    const select = "..."; // (keep your current select)
+    const supabaseUrl =
+      `${SUPABASE_URL}/rest/v1/warranty_claims_pdf_v?` +
+      `select=${encodeURIComponent(select)}&` +
+      `warranty_claim_id=eq.${encodeURIComponent(claimId)}&limit=1`;
+    // ...
+  }
+}
 
-    if (url.pathname !== "/pdf") {
-      return new Response("Use /pdf?claim=<id>", { status: 400 });
-    }
-
-    const claimId = url.searchParams.get("claim");
-    if (!claimId) return new Response("Missing ?claim", { status: 400 });
-
-    const { SUPABASE_URL, SUPABASE_ANON_KEY } = env;
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      return new Response(
-        `Missing env: ${!SUPABASE_URL ? "SUPABASE_URL " : ""}${!SUPABASE_ANON_KEY ? "SUPABASE_ANON_KEY" : ""}`,
-        { status: 500 }
-      );
-    }
 
     // --- Fetch from Supabase view ---
     const select = [
