@@ -2,7 +2,7 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 // Put this near the top of src/index.js (outside fetch)
-const SUPABASE_URL_DEFAULT = "https://YOUR-PROJECT-REF.supabase.co"; // <-- replace
+const SUPABASE_URL_DEFAULT = "https://idtwjchmeldqwurigvkx.supabase.co"; // <-- replace
 
 export default {
   async fetch(req, env) {
