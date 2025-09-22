@@ -15,7 +15,18 @@ export default {
         }
       });
     }
+  // --- Health check route ---
+    if (url.pathname === "/health") {
+      const ok = {
+        has_SUPABASE_URL: !!env.SUPABASE_URL,
+        has_SUPABASE_ANON_KEY: !!env.SUPABASE_ANON_KEY
+      };
+      return new Response(JSON.stringify(ok, null, 2), {
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+      });
+    }
 
+    // --- PDF route ---
     if (url.pathname !== "/pdf") {
       return new Response("Use /pdf?claim=<id>", { status: 400 });
     }
