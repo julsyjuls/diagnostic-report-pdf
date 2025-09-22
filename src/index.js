@@ -86,16 +86,17 @@ export default {
       return num.toFixed(3).replace(/\.?0+$/, "");
     };
 
-      // draw up to 3 lines starting from a TOP Y (not baseline)
-    const drawMultiFromTop = (text, x, topY) => {
-    const s = String(text ?? "");
-    const charsPerLine = 88;      // fits ~430px @ size 9
-    let i = 0, lines = 0, ty = topY - 12;  // first line ~12px below top
-    while (i < s.length && lines < 3) {
-      drawText(s.slice(i, i + charsPerLine), x, ty, { size: 9 });
-      i += charsPerLine; lines++; ty -= 12;
-    }
-  };
+// draw up to 3 lines starting from a TOP Y (not baseline)
+const drawMultiFromTop = (text, x, topY) => {
+  const s = String(text ?? "");
+  const charsPerLine = 88;     // fits ~430px @ size 9
+  let i = 0, lines = 0, ty = topY - 12;  // first line ~12px below top
+  while (i < s.length && lines < 3) {
+    drawText(s.slice(i, i + charsPerLine), x, ty, { size: 9 });
+    i += charsPerLine; lines++; ty -= 12;
+  }
+};
+
 
     
     // ----- Build PDF -----
@@ -123,14 +124,14 @@ export default {
     y -= 32;
 
     // Claim info
-    drawText("Date Claimed:", MARGIN_L, y, { bold:true }); drawText(fmtDate(claim.date_claimed), 130, y); y -= 16;
-    drawText("Customer:",     MARGIN_L, y, { bold:true }); drawText(pad(claim.account_name), 130, y);  y -= 16;
+    drawText("Date Claimed:", MARGIN_L, y, { bold:true }); drawText(fmtDate(claim.date_claimed), 130, y); y -= 16; y -= 8;
+    drawText("Customer:",     MARGIN_L, y, { bold:true }); drawText(pad(claim.account_name), 130, y);  y -= 16; 
     drawText("Address:",      MARGIN_L, y, { bold:true }); drawText(pad(claim.account_address), 130, y); y -= 24;
 
     // Item info
     drawText("Item Information", MARGIN_L, y, { bold:true, size:11 }); y -= 16;
     drawText("Barcode:", MARGIN_L, y, { bold:true }); drawText(pad(claim.barcode), 130, y); y -= 16;
-    drawText("SKU:",     MARGIN_L, y, { bold:true }); drawText(pad(claim.sku_code), 130, y); y -= 20;
+    drawText("SKU:",     MARGIN_L, y, { bold:true }); drawText(pad(claim.sku_code), 130, y); y -= 20; y -= 8;
 
     // Diagnostics
     drawText("Diagnostic Report", MARGIN_L, y, { bold:true, size:11 }); y -= 16;
@@ -192,14 +193,17 @@ export default {
     drawText("No Defect:", 280, y, { bold:true });
     drawText(claim.no_defect ? "Yes" : "No", 420, y);
 
-    // >>> Extra gap so evaluation boxes never overlap the Yes/No row
-    y -= 28;   
+// modest gap from the Yes/No row
+y -= 24;
 
-    // Perfect alignment constants
-const LABEL_X = 30;
+// alignment constants
+const LABEL_X = MARGIN_L;
 const BOX_X   = 130;
 const BOX_W   = 430;
 const BOX_H   = 36;
+
+// how high above the label baseline the TOP of the box should sit
+const BOX_TOP_OFFSET = 10;  // tweak 8–12 if you want
 
 const evalRows = [
   ["Result", pad(claim.result)],
@@ -211,20 +215,21 @@ const evalRows = [
 ];
 
 for (const [label, val] of evalRows) {
-  // 1) Label
+  // label baseline
   drawText(label + ":", LABEL_X, y, { bold: true });
 
-  // 2) Box whose TOP aligns with the label's baseline
-  const boxBottom = y - BOX_H + 2;     // +2 for a tiny visual cushion
-  const boxTop    = boxBottom + BOX_H;
-  box(BOX_X, boxBottom, BOX_W, BOX_H);
+  // box top aligned to the top of the word
+  const boxTop    = y + BOX_TOP_OFFSET;
+  const boxBottom = boxTop - BOX_H;
 
-  // 3) Box text starting near the TOP of the box
+  box(BOX_X, boxBottom, BOX_W, BOX_H);
   drawMultiFromTop(val, BOX_X + 4, boxTop - 4);
 
-  // 4) Move down for next row (consistent spacing)
+  // step down to next row
   y = boxBottom - 12;
 }
+y -= 12;  // small extra breathing room before signatures
+
 
     // Signatures (equal widths, tall; put value beside the title, no collision)
     const diagName = String(pad(claim.diagnosed_by));
