@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
-// Safe to hardcode (public, not a secret)
+// Public, safe to hardcode
 const SUPABASE_URL_DEFAULT = "https://idtwjchmeldqwurigvkx.supabase.co";
 
 export default {
@@ -37,7 +37,6 @@ export default {
     const claimId = url.searchParams.get("claim");
     if (!claimId) return new Response("Missing ?claim", { status: 400 });
 
-    // Env + fallback
     const SUPABASE_URL = env.SUPABASE_URL || SUPABASE_URL_DEFAULT;
     const { SUPABASE_ANON_KEY } = env;
     if (!SUPABASE_ANON_KEY) {
@@ -79,7 +78,7 @@ export default {
     // ----- Helpers -----
     const pad = (s) => (s ?? "—");
     const fmtDate = (d) => (d ? d.slice(0,10) : "—");
-    // Up to 3 decimals, trim trailing zeros
+    // Up to 3 decimals (trim trailing zeros)
     const fmt3 = (n) => {
       if (n == null || n === "") return "—";
       const num = Number(n);
@@ -99,34 +98,39 @@ export default {
     const box = (x, y, w, h, bw=1) =>
       page.drawRectangle({ x, y, width: w, height: h, borderColor: rgb(0,0,0), borderWidth: bw });
 
+    // Layout constants
+    const MARGIN_L = 30;
+    const MARGIN_R = 30;
+    const CONTENT_W = 595 - MARGIN_L - MARGIN_R;
+
     let y = 800;
 
     // Header
-    drawText("KAPS AUTO PARTS", 30, y, { bold:true, size:12 });
+    drawText("KAPS AUTO PARTS", MARGIN_L, y, { bold:true, size:12 });
     drawText(`Claim No.: ${pad(claim.warranty_claim_id)}`, 420, y, { bold:true, size:12 });
     y -= 32;
 
     // Claim info
-    drawText("Date Claimed:", 30, y, { bold:true }); drawText(fmtDate(claim.date_claimed), 130, y); y -= 16;
-    drawText("Customer:",     30, y, { bold:true }); drawText(pad(claim.account_name), 130, y);  y -= 16;
-    drawText("Address:",      30, y, { bold:true }); drawText(pad(claim.account_address), 130, y); y -= 24;
+    drawText("Date Claimed:", MARGIN_L, y, { bold:true }); drawText(fmtDate(claim.date_claimed), 130, y); y -= 16;
+    drawText("Customer:",     MARGIN_L, y, { bold:true }); drawText(pad(claim.account_name), 130, y);  y -= 16;
+    drawText("Address:",      MARGIN_L, y, { bold:true }); drawText(pad(claim.account_address), 130, y); y -= 24;
 
     // Item info
-    drawText("Item Information", 30, y, { bold:true, size:11 }); y -= 16;
-    drawText("Barcode:", 30, y, { bold:true }); drawText(pad(claim.barcode), 130, y); y -= 16;
-    drawText("SKU:",     30, y, { bold:true }); drawText(pad(claim.sku_code), 130, y); y -= 20;
+    drawText("Item Information", MARGIN_L, y, { bold:true, size:11 }); y -= 16;
+    drawText("Barcode:", MARGIN_L, y, { bold:true }); drawText(pad(claim.barcode), 130, y); y -= 16;
+    drawText("SKU:",     MARGIN_L, y, { bold:true }); drawText(pad(claim.sku_code), 130, y); y -= 20;
 
     // Diagnostics
-    drawText("Diagnostic Report", 30, y, { bold:true, size:11 }); y -= 16;
+    drawText("Diagnostic Report", MARGIN_L, y, { bold:true, size:11 }); y -= 16;
 
     // A. Testing Before Charging
-    drawText("A. Testing Before Charging", 30, y, { bold:true }); y -= 14;
-    drawText("Open Circuit Voltage:", 30, y); drawText(fmt3(claim.voltage_before_charge), 180, y); y -= 14;
-    drawText("Electrolyte:", 30, y);          drawText(pad(claim.electrolyte), 180, y); y -= 16;
+    drawText("A. Testing Before Charging", MARGIN_L, y, { bold:true }); y -= 14;
+    drawText("Open Circuit Voltage:", MARGIN_L, y); drawText(fmt3(claim.voltage_before_charge), 180, y); y -= 14;
+    drawText("Electrolyte:", MARGIN_L, y);          drawText(pad(claim.electrolyte), 180, y); y -= 16;
 
-    // Cells helper
+    // 6-cell table helper
     const drawCells = (values, startY) => {
-      const cols = 6, cw = 50, chH = 12, chV = 14, gap = 2, x0 = 30;
+      const cols = 6, cw = 50, chH = 12, chV = 14, gap = 2, x0 = MARGIN_L;
       // header row
       for (let i=0; i<cols; i++) {
         const cx = x0 + i*(cw+gap);
@@ -140,7 +144,7 @@ export default {
         box(cx, yVals, cw, chV);
         drawText(fmt3(values[i]), cx + 10, yVals + 2, { size:8 });
       }
-      return yVals - 14;
+      return yVals - 14; // padding
     };
 
     // Before charge cells
@@ -151,8 +155,8 @@ export default {
     y -= 8;
 
     // B. Testing After Charging
-    drawText("B. Testing After Charging", 30, y, { bold:true }); y -= 14;
-    drawText("Open Circuit Voltage:", 30, y); drawText(fmt3(claim.voltage_after_charge), 180, y); y -= 16;
+    drawText("B. Testing After Charging", MARGIN_L, y, { bold:true }); y -= 14;
+    drawText("Open Circuit Voltage:", MARGIN_L, y); drawText(fmt3(claim.voltage_after_charge), 180, y); y -= 16;
 
     // After charge cells
     y = drawCells(
@@ -162,21 +166,30 @@ export default {
     y -= 10;
 
     // C. Assessment / Status
-    drawText("C. Assessment / Status", 30, y, { bold:true }); y -= 16;
+    drawText("C. Assessment / Status", MARGIN_L, y, { bold:true });
+    y -= 16;
 
-    drawText("Defective:", 30, y, { bold:true });
+    drawText("Defective:", MARGIN_L, y, { bold:true });
     drawText(claim.defective ? "Yes" : "No", 150, y);
     drawText("Non-Adjustable:", 280, y, { bold:true });
     drawText(claim.non_adjustable ? "Yes" : "No", 420, y);
     y -= 16;
 
-    drawText("Recharge:", 30, y, { bold:true });
+    drawText("Recharge:", MARGIN_L, y, { bold:true });
     drawText(claim.recharge ? "Yes" : "No", 150, y);
     drawText("No Defect:", 280, y, { bold:true });
     drawText(claim.no_defect ? "Yes" : "No", 420, y);
-    y -= 32; // keep big boxes clear
 
-    // Evaluation block
+    // >>> Extra gap so evaluation boxes never overlap the Yes/No row
+    y -= 48;   // was 32; add ~2 more text lines of space
+
+    // Evaluation block constants (for perfect alignment)
+    const LABEL_X = MARGIN_L;
+    const BOX_X   = 130;
+    const BOX_W   = 430;
+    const BOX_H   = 36;
+    const LABEL_TO_BOX_TOP = 8; // keep the same offset for every row
+
     const evalRows = [
       ["Result", pad(claim.result)],
       ["Factory Defect", pad(claim.factory_defect)],
@@ -186,6 +199,7 @@ export default {
       ["Final Result", pad(claim.final_result)]
     ];
 
+    // text wrapper (3 lines max)
     const drawMulti = (text, x, yTop) => {
       const s = String(text);
       const charsPerLine = 88; // width 430 @ size 9
@@ -197,27 +211,36 @@ export default {
     };
 
     for (const [label, val] of evalRows) {
-      drawText(label + ":", 30, y, { bold:true });
-      box(130, y - 3, 430, 36);
-      drawMulti(val, 134, y);
-      y -= 44;
+      // Align all rows by using the same offsets
+      drawText(label + ":", LABEL_X, y, { bold:true });
+      const boxTop = y - LABEL_TO_BOX_TOP - BOX_H;  // consistent top for all boxes
+      box(BOX_X, boxTop, BOX_W, BOX_H);
+      drawMulti(val, BOX_X + 4, boxTop + 22);
+      y = boxTop - 12; // spacing between rows
     }
 
-    // Signatures (taller; Received shares row)
+    // Signatures (equal widths, tall; put value beside the title, no collision)
     const diagName = String(pad(claim.diagnosed_by));
     const recvName = String(pad(claim.received_by));
 
-    const diagW = 300, recvW = 220, sigH = 36, gap = 15;
-    const diagX = 30,  recvX = diagX + diagW + gap;
+    const SIG_GAP = 20;
+    const SIG_W   = Math.floor((CONTENT_W - SIG_GAP) / 2); // equal width
+    const SIG_H   = 36;
+    const diagX   = MARGIN_L;
+    const recvX   = MARGIN_L + SIG_W + SIG_GAP;
 
+    // Titles
     drawText("Diagnosed By", diagX, y, { bold:true });
-    box(diagX, y - 18, diagW, sigH);
-    // always draw (even if it's "—")
-    drawText(diagName, diagX + 6, y - 6);
+    drawText("Received By",  recvX, y, { bold:true });
 
-    drawText("Received By", recvX, y, { bold:true });
-    box(recvX, y - 18, recvW, sigH);
-    drawText(recvName, recvX + 6, y - 6);
+    // Printed values BESIDE the titles (not colliding)
+    // (Place them a bit to the right of each title on the same baseline)
+    drawText(diagName, diagX + 110, y);   // shift right so it never hits the title
+    drawText(recvName, recvX + 95,  y);
+
+    // Signature boxes (equal length)
+    box(diagX, y - 18, SIG_W, SIG_H);
+    box(recvX, y - 18, SIG_W, SIG_H);
 
     const bytes = await pdf.save();
     return new Response(bytes, {
