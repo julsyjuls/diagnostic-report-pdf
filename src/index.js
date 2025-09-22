@@ -86,6 +86,18 @@ export default {
       return num.toFixed(3).replace(/\.?0+$/, "");
     };
 
+      // draw up to 3 lines starting from a TOP Y (not baseline)
+    const drawMultiFromTop = (text, x, topY) => {
+    const s = String(text ?? "");
+    const charsPerLine = 88;      // fits ~430px @ size 9
+    let i = 0, lines = 0, ty = topY - 12;  // first line ~12px below top
+    while (i < s.length && lines < 3) {
+      drawText(s.slice(i, i + charsPerLine), x, ty, { size: 9 });
+      i += charsPerLine; lines++; ty -= 12;
+    }
+  };
+
+    
     // ----- Build PDF -----
     const pdf = await PDFDocument.create();
     const page = pdf.addPage([595, 842]); // A4
@@ -181,43 +193,38 @@ export default {
     drawText(claim.no_defect ? "Yes" : "No", 420, y);
 
     // >>> Extra gap so evaluation boxes never overlap the Yes/No row
-    y -= 48;   // was 32; add ~2 more text lines of space
+    y -= 28;   
 
-    // Evaluation block constants (for perfect alignment)
-    const LABEL_X = MARGIN_L;
-    const BOX_X   = 130;
-    const BOX_W   = 430;
-    const BOX_H   = 36;
-    const LABEL_TO_BOX_TOP = 8; // keep the same offset for every row
+    // Perfect alignment constants
+const LABEL_X = 30;
+const BOX_X   = 130;
+const BOX_W   = 430;
+const BOX_H   = 36;
 
-    const evalRows = [
-      ["Result", pad(claim.result)],
-      ["Factory Defect", pad(claim.factory_defect)],
-      ["Non-Factory Defect", pad(claim.non_factory_defect)],
-      ["Remarks", pad(claim.remarks)],
-      ["Findings", pad(claim.findings)],
-      ["Final Result", pad(claim.final_result)]
-    ];
+const evalRows = [
+  ["Result", pad(claim.result)],
+  ["Factory Defect", pad(claim.factory_defect)],
+  ["Non-Factory Defect", pad(claim.non_factory_defect)],
+  ["Remarks", pad(claim.remarks)],
+  ["Findings", pad(claim.findings)],
+  ["Final Result", pad(claim.final_result)]
+];
 
-    // text wrapper (3 lines max)
-    const drawMulti = (text, x, yTop) => {
-      const s = String(text);
-      const charsPerLine = 88; // width 430 @ size 9
-      let i = 0, lines = 0, ty = yTop + 14;
-      while (i < s.length && lines < 3) {
-        drawText(s.slice(i, i + charsPerLine), x, ty, { size: 9 });
-        i += charsPerLine; lines++; ty -= 12;
-      }
-    };
+for (const [label, val] of evalRows) {
+  // 1) Label
+  drawText(label + ":", LABEL_X, y, { bold: true });
 
-    for (const [label, val] of evalRows) {
-      // Align all rows by using the same offsets
-      drawText(label + ":", LABEL_X, y, { bold:true });
-      const boxTop = y - LABEL_TO_BOX_TOP - BOX_H;  // consistent top for all boxes
-      box(BOX_X, boxTop, BOX_W, BOX_H);
-      drawMulti(val, BOX_X + 4, boxTop + 22);
-      y = boxTop - 12; // spacing between rows
-    }
+  // 2) Box whose TOP aligns with the label's baseline
+  const boxBottom = y - BOX_H + 2;     // +2 for a tiny visual cushion
+  const boxTop    = boxBottom + BOX_H;
+  box(BOX_X, boxBottom, BOX_W, BOX_H);
+
+  // 3) Box text starting near the TOP of the box
+  drawMultiFromTop(val, BOX_X + 4, boxTop - 4);
+
+  // 4) Move down for next row (consistent spacing)
+  y = boxBottom - 12;
+}
 
     // Signatures (equal widths, tall; put value beside the title, no collision)
     const diagName = String(pad(claim.diagnosed_by));
